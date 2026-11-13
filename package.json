@@ -1,0 +1,13 @@
+{
+  "name": "neon-breach",
+  "version": "1.0.0",
+  "private": true,
+  "description": "NEON BREACH / 霓虹突袭 — a dependency-free WebGL first-person shooter in a single HTML file.",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "UNLICENSED"
+}

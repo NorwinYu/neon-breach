@@ -1,0 +1,12 @@
+import fs from 'node:fs';
+import path from 'node:path';
+const root = path.dirname(new URL(import.meta.url).pathname);
+const shell = fs.readFileSync(path.join(root, 'src/shell.html'), 'utf8');
+const css = fs.readFileSync(path.join(root, 'src/style.css'), 'utf8');
+const files = ['00-core.js','10-gl.js','20-world.js','30-audio.js','40-state.js','45-viewmodel.js','47-ui.js','50-systems.js','60-render.js'];
+const js = files.map(f => `\n/* ---- ${f} ---- */\n` + fs.readFileSync(path.join(root, 'src', f), 'utf8')).join('\n');
+let out = shell.replace('/*__CSS__*/', () => css);
+out = out.replace('/*__JS__*/', () => `(function(){\n${js}\n})();`);
+const target = path.join(root, 'index.html');
+fs.writeFileSync(target, out);
+console.log('built', path.relative(process.cwd(), target), (out.length/1024).toFixed(1) + ' KiB');

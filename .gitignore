@@ -1,0 +1,17 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+
+# Local tooling
+node_modules/
+.chrome-*/
+chrome-profile/
+shots/
+*.log
+
+# Secrets / local environment
+.env
+.env.*
+*.local

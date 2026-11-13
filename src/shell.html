@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#03070d">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="NEON BREACH // 霓虹突袭：一款完全由代码生成、无外部素材依赖的 3D 霓虹竞技场第一人称射击游戏。坚守五波机械军团并击破典狱长核心。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="NEON BREACH // 霓虹突袭">
+<meta property="og:description" content="原生 WebGL 与 Web Audio 构建的单文件 3D FPS：五波攻势、机械军团、三阶段 Boss。">
+<meta name="twitter:card" content="summary">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%2304070d'/%3E%3Cpath d='M32 8 54 32 32 56 10 32Z' fill='none' stroke='%2368f6ff' stroke-width='3'/%3E%3Cpath d='M32 20 43 32 32 44 21 32Z' fill='%23ff2f8b'/%3E%3C/svg%3E">
+<title>NEON BREACH // 霓虹突袭</title>
+<style>
+/*__CSS__*/
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="glCanvas" aria-label="3D game viewport"></canvas>
+  <canvas id="fxCanvas"></canvas>
+  <div id="vignette"></div>
+  <div id="scanlines"></div>
+  <div id="grain"></div>
+  <div id="damageFlash"></div>
+
+  <!-- ============================ HUD ============================ -->
+  <div id="hud" class="hidden">
+    <div class="hud-top">
+      <div class="wave-panel">
+        <div class="kicker">SECTOR 07 · HOSTILE INCURSION</div>
+        <div class="wave-id-row">
+          <div class="wave-index" id="waveIndex">00</div>
+          <div class="wave-meta">
+            <div class="wave-name" id="waveName">待命</div>
+            <div class="wave-sub" id="waveSub">AWAITING SIGNAL</div>
+          </div>
+        </div>
+        <div class="wave-progress">
+          <span>敌对信号</span><b id="enemiesLeft">--</b><span>UNITS</span>
+          <div class="wave-segments" id="waveSegments">
+            <i></i><i></i><i></i><i></i><i class="boss"></i>
+          </div>
+        </div>
+      </div>
+
+      <div class="boss-hud hidden" id="bossHud">
+        <div class="boss-title-row"><span class="boss-tag">PRIME THREAT</span><span class="boss-title">典狱长 · THE WARDEN</span><span class="boss-tag" id="bossPhase">PHASE 01</span></div>
+        <div class="boss-track"><div class="boss-fill" id="bossFill" style="width:100%"></div><div class="boss-ticks"></div></div>
+      </div>
+
+      <div class="score-panel">
+        <div class="score-kicker"><span class="kicker">COMBAT SCORE</span></div>
+        <div class="score-value" id="scoreValue">000000</div>
+        <div class="score-high">BEST <span id="highScoreHud">000000</span></div>
+        <div class="combo-badge" id="comboBadge"><span>连锁</span><b id="comboValue">x1.0</b><span class="combo-meter"><i id="comboMeter" style="transform:scaleX(0)"></i></span></div>
+      </div>
+    </div>
+
+    <div id="killfeed"></div>
+
+    <div class="hud-bottom">
+      <div class="left-stack">
+        <div class="radar-panel">
+          <div class="radar-frame"><canvas id="radar" width="316" height="316"></canvas></div>
+          <div class="radar-caption"><span>近距扫描 / RADAR</span><b id="radarCount">00</b></div>
+        </div>
+        <div class="vitals-panel" id="vitalsPanel">
+          <div class="vital-row">
+            <div class="vital-label"><span class="sq"></span>生命维持 / VITALS</div>
+            <div class="vital-number"><span id="hpValue">100</span><small>/100</small></div>
+          </div>
+          <div class="health-bar"><i id="hpBar" style="width:100%"></i></div>
+          <div class="shield-row">
+            <div class="shield-label"><span>能量护盾 / SHIELD</span><b id="shieldValue">50</b></div>
+            <div class="shield-bar"><i id="shieldBar" style="width:100%"></i></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="right-stack">
+        <div class="weapon-chip"><span class="weapon-icon"></span><span>主武器</span><b>VX-9 脉冲步枪</b><span>·</span><span>稳定</span></div>
+        <div class="ammo-panel">
+          <div class="ammo-row">
+            <div class="ammo-mag" id="ammoMag">30</div>
+            <div class="ammo-cap"><span class="ammo-slash">/</span><b>∞</b><span class="ammo-label">备弹</span></div>
+          </div>
+          <div class="reload-track" id="reloadTrack"><i id="reloadFill"></i></div>
+          <div class="ammo-meta"><span>全自动 · 5.56 脉冲</span><span class="mode" id="weaponMode">READY</span></div>
+        </div>
+        <div class="grenade-row">
+          <span class="grenade-key">G</span>
+          <div class="grenade-icons" id="grenadeIcons"><i class="full"></i><i class="full"></i></div>
+          <span>电弧手雷</span>
+          <span style="margin-left:auto">M 音频</span>
+        </div>
+        <div class="hud-hints"><span><b>LSHIFT</b> 冲刺</span><span><b>SPACE</b> 跳跃</span><span><b>ESC</b> 暂停</span></div>
+      </div>
+    </div>
+
+    <div id="crosshair" style="--gap:11px">
+      <div class="ch-line top"></div><div class="ch-line bottom"></div>
+      <div class="ch-line left"></div><div class="ch-line right"></div>
+      <div class="ch-dot"></div>
+      <div class="ch-ticks"></div>
+      <div id="hitmarker"><i></i><i></i><i></i><i></i></div>
+      <div id="reloadHint">R · 更换弹匣</div>
+    </div>
+
+    <div id="zoneTimer"><div class="zt-label">区域净化完成</div><div class="zt-time" id="zoneTimerValue">00:05</div><div class="zt-next" id="zoneTimerNext">下一波接近</div></div>
+    <div id="pointerHint">点击画面以锁定鼠标</div>
+    <div id="toast"></div>
+  </div>
+
+  <div id="announcer">
+    <div class="ann-kicker" id="annKicker">INCOMING</div>
+    <div class="ann-title" id="annTitle">接触</div>
+    <div class="ann-sub" id="annSub">6 HOSTILE SIGNATURES DETECTED</div>
+    <div class="ann-rule"></div>
+  </div>
+
+  <div id="screenFlash" class="screen-flash"></div>
+
+  <!-- ============================ BOOT ============================ -->
+  <div id="bootScreen">
+    <div class="boot-mark">NEON <span>//</span> BREACH</div>
+    <div class="boot-sub">INITIALIZING KINETIC COMBAT PROTOCOL</div>
+    <div class="boot-track"><i></i></div>
+  </div>
+
+  <!-- ============================ MENU ============================ -->
+  <section id="startScreen" class="screen">
+    <nav class="menu-nav">
+      <div class="brand">
+        <div class="brand-diamond"></div>
+        <div class="brand-copy">
+          <div class="brand-name">NEON BREACH</div>
+          <div class="brand-sub">KINETIC DIVISION · SECTOR 07</div>
+        </div>
+      </div>
+      <div class="menu-nav-right">
+        <div class="net-status"><span class="net-dot"></span><span>LOCAL LINK / STABLE</span></div>
+        <button class="btn-icon" id="soundBtn" aria-label="切换音频">
+          <svg id="soundIconOn" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19 6a8.5 8.5 0 0 1 0 12"/></svg>
+          <svg id="soundIconOff" viewBox="0 0 24 24" class="hidden"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M17 9l5 6M22 9l-5 6"/></svg>
+        </button>
+      </div>
+    </nav>
+
+    <div class="menu-main">
+      <div class="hero-copy">
+        <div class="hero-kicker"><span class="line"></span><span>COMBAT SIMULATION // 05.17.2087</span></div>
+        <h1 class="hero-title">
+          <span class="line line-1">NEON</span>
+          <span class="line line-2">BREACH</span>
+        </h1>
+        <div class="hero-cn">霓虹突袭</div>
+        <p class="hero-desc">
+          零号竞技场的信号已经失守。你是最后一名<b>「破界者」</b>执行者。
+          手持 VX-9 脉冲步枪，穿过五轮机械潮汐，击穿核心守卫——<b>典狱长</b>。
+        </p>
+        <div class="cta-row">
+          <button class="btn btn-primary start-btn" id="startBtn">
+            <span>开始行动</span><span class="btn-tag">[ DEPLOY ]</span><span class="arrow">›</span>
+          </button>
+          <div class="cta-note"><span>鼠标将被锁定</span><span>点击后立即进入战场</span></div>
+        </div>
+        <div class="quick-controls"><span><b>WASD</b> 移动</span><span><b>鼠标</b> 瞄准</span><span><b>左键</b> 射击</span><span><b>R</b> 换弹</span><span><b>G</b> 手雷</span><span><b>ESC</b> 暂停</span></div>
+        <div class="menu-stats">
+          <div class="menu-stat"><b id="menuHighScore">000000</b><span>历史最高分 / BEST</span></div>
+          <div class="menu-stat"><b>05 <em>WAVES</em></b><span>攻势轮次 / ASSAULT</span></div>
+          <div class="menu-stat"><b>01 <em>BOSS</em></b><span>核心威胁 / PRIME</span></div>
+        </div>
+      </div>
+
+      <div class="brief-wrap">
+        <aside class="brief-card">
+          <div class="brief-head">
+            <div><div class="kicker">MISSION BRIEF</div><h3>清扫协议 / PURGE</h3></div>
+            <div class="brief-code">OP-07 / A</div>
+          </div>
+          <div class="brief-section">
+            <div class="brief-label">OPERATION PARAMETERS</div>
+            <div class="mission-line"><i>01</i><p>坚守竞技场，清除 <b>5 波</b> 机械军团。</p></div>
+            <div class="mission-line"><i>02</i><p>利用掩体与护盾再生，熬过交叉火力。</p></div>
+            <div class="mission-line"><i>03</i><p>击破 <b>典狱长</b> 核心，终止清扫程序。</p></div>
+          </div>
+          <div class="brief-section">
+            <div class="brief-label">HOSTILE PROFILE</div>
+            <div class="threat-row">
+              <span class="threat-chip"><span class="dot"></span>侦察机</span>
+              <span class="threat-chip"><span class="dot"></span>织网者</span>
+              <span class="threat-chip"><span class="dot"></span>碾压者</span>
+              <span class="threat-chip danger"><span class="dot"></span>典狱长</span>
+            </div>
+          </div>
+          <div class="brief-section">
+            <div class="brief-label">FIELD CONTROLS</div>
+            <div class="controls-mini">
+              <div class="control-mini"><span>移动</span><span class="keycap">WASD</span></div>
+              <div class="control-mini"><span>射击</span><span class="keycap">LMB</span></div>
+              <div class="control-mini"><span>瞄准</span><span class="keycap">RMB</span></div>
+              <div class="control-mini"><span>换弹</span><span class="keycap">R</span></div>
+              <div class="control-mini"><span>手雷</span><span class="keycap">G</span></div>
+              <div class="control-mini"><span>冲刺 / 跳</span><span class="keycap">⇧ / SPACE</span></div>
+            </div>
+          </div>
+          <div class="brief-foot">
+            <div class="difficulty"><span>威胁等级</span><div class="difficulty-bars"><i></i><i></i><i></i><i></i><i></i></div></div>
+            <div class="brief-id">NB-07 · REV 2.6</div>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+    <footer class="menu-footer">
+      <div>破界者战术终端 <span class="sep"></span> 独立构建 <span class="sep"></span> WEBGL</div>
+      <div class="desk-only">佩戴耳机 · 建议全屏 <span class="sep"></span> SENSITIVITY 可在暂停菜单调整</div>
+      <div>© 2087 KINETIC DIVISION</div>
+    </footer>
+  </section>
+
+  <!-- ============================ PAUSE ============================ -->
+  <section id="pauseScreen" class="screen hidden">
+    <div class="pause-panel">
+      <div class="pause-head">
+        <div><div class="kicker">SIMULATION SUSPENDED</div><h2>系统<span>暂停</span></h2></div>
+        <div class="pause-code">LINK HOLD<br>NEURAL SYNC 100%</div>
+      </div>
+      <div class="pause-stats">
+        <div class="pause-stat"><span>当前波次 / WAVE</span><b id="pauseWave">01 <small>/05</small></b></div>
+        <div class="pause-stat"><span>战斗得分 / SCORE</span><b id="pauseScore">000000</b></div>
+        <div class="pause-stat"><span>消灭单位 / KILLS</span><b id="pauseKills">00</b></div>
+      </div>
+      <div class="pause-actions">
+        <button class="btn btn-primary" id="resumeBtn">继续行动 <span class="arrow">›</span></button>
+        <div class="pause-sub">
+          <button class="btn btn-ghost open-settings" data-return="pause">设置 / OPTIONS</button>
+          <button class="btn btn-ghost" id="restartFromPause">重新部署</button>
+          <button class="btn btn-ghost" id="menuFromPause">返回主界面</button>
+        </div>
+      </div>
+      <div class="pause-hints">
+        <span><b>WASD</b> 移动 · <b>SHIFT</b> 冲刺 · <b>SPACE</b> 跳跃</span>
+        <span><b>M</b> 切换音频 · <b>ESC</b> 返回战场</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ END ============================ -->
+  <section id="endScreen" class="screen hidden">
+    <div class="end-panel">
+      <div class="end-kicker" id="endKicker">OPERATION COMPLETE</div>
+      <div class="end-title"><span id="endTitleMain">区域</span><span class="outline" id="endTitleOutline">净化</span></div>
+      <div class="end-cause" id="endCause">典狱长核心已离线，竞技场信号恢复。</div>
+      <div class="end-score-row">
+        <div class="end-score"><span>FINAL SCORE / 最终得分</span><b id="endScore">000000</b></div>
+        <div class="end-rank"><span>RANK</span><b id="endRank">S</b></div>
+      </div>
+      <div class="end-stats">
+        <div class="end-stat"><span>消灭单位 / KILLS</span><b id="endKills">0</b></div>
+        <div class="end-stat"><span>致命命中 / HEADSHOTS</span><b id="endHeadshots">0</b></div>
+        <div class="end-stat"><span>命中率 / ACCURACY</span><b id="endAccuracy">0%</b></div>
+        <div class="end-stat"><span>到达波次 / WAVE</span><b id="endWave">1 / 5</b></div>
+        <div class="end-stat"><span>生存时间 / TIME</span><b id="endTime">00:00</b></div>
+        <div class="end-stat"><span>最高连锁 / BEST COMBO</span><b id="endCombo">x1.0</b></div>
+      </div>
+      <div class="end-actions">
+        <button class="btn btn-primary" id="retryBtn">再次部署 <span class="arrow">›</span></button>
+        <button class="btn btn-ghost" id="menuFromEnd">返回主界面</button>
+      </div>
+      <div class="end-foot" id="endFoot">存档已同步 · NEON BREACH // SECTOR 07</div>
+    </div>
+  </section>
+
+  <!-- ============================ SETTINGS ============================ -->
+  <div id="settingsModal" class="hidden">
+    <div class="settings-card">
+      <div class="settings-head">
+        <div><div class="kicker">COMBAT CALIBRATION</div><h3>操作设置</h3></div>
+        <button class="btn-icon" id="closeSettings" aria-label="关闭设置">✕</button>
+      </div>
+      <div class="settings-row">
+        <div class="settings-label"><span>鼠标灵敏度 / SENSITIVITY</span><b id="sensValue">1.00</b></div>
+        <input type="range" id="sensRange" min="0.25" max="2.25" step="0.05" value="1">
+      </div>
+      <div class="settings-row">
+        <div class="settings-label"><span>主音量 / MASTER VOLUME</span><b id="volValue">70</b></div>
+        <input type="range" id="volRange" min="0" max="100" step="1" value="70">
+      </div>
+      <div class="toggle-row"><span>反转纵向视角 / INVERT Y</span><button class="switch" id="invertToggle" aria-label="反转横向视角"></button></div>
+      <div class="toggle-row"><span>画面扫描线 / SCANLINES</span><button class="switch on" id="scanToggle" aria-label="切换扫描线"></button></div>
+      <div class="settings-note">设置会即时保存至本机。建议使用耳机并将音量保持在舒适范围。<br>WebGL · 独立渲染 · 无外部资源</div>
+      <div class="settings-actions">
+        <button class="btn btn-ghost" id="resetSettings">恢复默认</button>
+        <button class="btn btn-primary" id="doneSettings">完成</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="fatalError">
+    <div class="fatal-box">
+      <h2>RENDER LINK FAILED</h2>
+      <p>无法初始化 WebGL 渲染器。请使用最新版 Chrome、Edge、Firefox 或 Safari，并确认浏览器启用了硬件加速。<br><br><span id="fatalDetail"></span></p>
+    </div>
+  </div>
+</div>
+
+<script>
+/*__JS__*/
+</script>
+</body>
+</html>
